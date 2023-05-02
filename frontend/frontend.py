@@ -1,9 +1,14 @@
 import gradio as gr
+import requests
+from .query import send_queries_ray
 
-all_models = ["gpt-3.5-turbo", "alpaca-7b", "claude-v1", "claude-instant-v1", "google/flan-ul2", "google/flan-t5-xxl"]
+HOST = "http://localhost:8000/query/"
+
+all_models = ["stabilityai/stablelm-tuned-alpha-7b", "databricks/dolly-v2-12b"]
 default_selected_models = [all_models[i] for i in range(2)]
 # output_boxes = []
 output_rows = []
+output_boxes = {}
 
 theme = gr.themes.Default(
     primary_hue="blue",
@@ -109,7 +114,9 @@ body, gradio-app {
 }
 """
 def update_model_selection(selected_models):
-    return [gr.Textbox.update(visible = True) if model in selected_models else gr.Textbox.update(visible = False) for model in all_models]
+    return [gr.Textbox.update(visible = True, label=model) if model in selected_models else gr.Textbox.update(visible = False, label=model) for model in all_models]
+
+
 
 with gr.Blocks(theme=theme, css=css_str, elem_id="container") as demo:
     gr.HTML("<h1>LLM Menagerie</h1>")
@@ -127,11 +134,16 @@ with gr.Blocks(theme=theme, css=css_str, elem_id="container") as demo:
                 with gr.Row(visible=(True if model in default_selected_models else False)) as row:
                     output_rows.append(row)
                     with gr.Column(elem_classes=["text-col"]):
-                        gr.Textbox(label=model, lines=8, elem_classes=["output-text"])
+                        output_boxes[model] = gr.Textbox(label=model, lines=8, elem_classes=["output-text"])
                     with gr.Column(elem_classes=["btn-col"]):
                         gr.Button(value='\U0001F44D', variant="secondary", elem_classes=["upvote-btn", "output-btn"])
                         gr.Button(value='\U0001F44E', variant="secondary", elem_classes=["downvote-btn", "output-btn"])
                         gr.Button(value='\U00002699', variant="secondary", elem_classes=["setting-btn", "output-btn"])
             model_selection_checkboxes.change(fn=update_model_selection, inputs=model_selection_checkboxes, outputs=output_rows)
+    def send_queries(text):
+        yield from send_queries_ray(text, output_boxes, HOST)
 
+    run.click(fn=send_queries, inputs=text1, outputs=list(output_boxes.values()), api_name="run")
+
+demo.queue()
 demo.launch()
