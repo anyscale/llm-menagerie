@@ -1,10 +1,12 @@
 import gradio as gr
 import requests
+import ray
 from .query import send_queries_ray
 
-HOST = "http://localhost:8000/query/"
-
-all_models = ["stabilityai/stablelm-tuned-alpha-7b", "databricks/dolly-v2-12b"]
+HOST = "http://localhost:8000/"
+ray.init()
+all_models = requests.get(f"{HOST}models").json()
+print(f"all_models {all_models}")
 default_selected_models = [all_models[i] for i in range(2)]
 # output_boxes = []
 output_rows = []
@@ -141,7 +143,7 @@ with gr.Blocks(theme=theme, css=css_str, elem_id="container") as demo:
                         gr.Button(value='\U00002699', variant="secondary", elem_classes=["setting-btn", "output-btn"])
             model_selection_checkboxes.change(fn=update_model_selection, inputs=model_selection_checkboxes, outputs=output_rows)
     def send_queries(text):
-        yield from send_queries_ray(text, output_boxes, HOST)
+        yield from send_queries_ray(text, output_boxes, HOST+"query/")
 
     run.click(fn=send_queries, inputs=text1, outputs=list(output_boxes.values()), api_name="run")
 
